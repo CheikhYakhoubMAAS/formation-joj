@@ -2,12 +2,15 @@ import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post } from '@ne
 import { ApiTags } from '@nestjs/swagger';
 import {
   createDisciplineSchema,
+  type DisciplineCategoryCount,
+  disciplineCategoryCountsSchema,
   disciplineIdParamsSchema,
   type DisciplineResponse,
   disciplineSchema,
   updateDisciplineSchema,
 } from '@joj/shared';
 import { createZodDto, ZodSerializerDto } from 'nestjs-zod';
+import { CountDisciplinesByCategory } from '../application/use-cases/count-disciplines-by-category';
 import { CreateDiscipline } from '../application/use-cases/create-discipline';
 import { DeleteDiscipline } from '../application/use-cases/delete-discipline';
 import { GetDiscipline } from '../application/use-cases/get-discipline';
@@ -19,6 +22,7 @@ class CreateDisciplineDto extends createZodDto(createDisciplineSchema) {}
 class UpdateDisciplineDto extends createZodDto(updateDisciplineSchema) {}
 class DisciplineIdParamsDto extends createZodDto(disciplineIdParamsSchema) {}
 class DisciplineDto extends createZodDto(disciplineSchema) {}
+class DisciplineCategoryCountsDto extends createZodDto(disciplineCategoryCountsSchema) {}
 
 /** Couche fine : valider (DTO zod), appeler un cas d'usage, sérialiser. Aucune règle métier ici. */
 @ApiTags('disciplines')
@@ -27,6 +31,7 @@ export class DisciplinesController {
   constructor(
     private readonly createDiscipline: CreateDiscipline,
     private readonly listDisciplines: ListDisciplines,
+    private readonly countDisciplinesByCategory: CountDisciplinesByCategory,
     private readonly getDiscipline: GetDiscipline,
     private readonly updateDiscipline: UpdateDiscipline,
     private readonly deleteDiscipline: DeleteDiscipline,
@@ -42,6 +47,13 @@ export class DisciplinesController {
   @ZodSerializerDto(DisciplineDto)
   async create(@Body() body: CreateDisciplineDto): Promise<DisciplineResponse> {
     return toResponse(await this.createDiscipline.execute(body));
+  }
+
+  // Avant `:id`, sinon `par-categorie` serait pris pour un identifiant (et refusé : pas un UUID).
+  @Get('par-categorie')
+  @ZodSerializerDto(DisciplineCategoryCountsDto)
+  async countByCategory(): Promise<DisciplineCategoryCount[]> {
+    return this.countDisciplinesByCategory.execute();
   }
 
   @Get(':id')
